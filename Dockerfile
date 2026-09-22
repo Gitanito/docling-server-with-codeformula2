@@ -6,7 +6,7 @@ USER root
 # Installiere huggingface_hub für den Modell-Download
 RUN pip install --no-cache-dir huggingface_hub
 
-# Erstelle den gewünschten Zielordner im Workspace
+# Erstelle das Zielverzeichnis im Workspace
 RUN mkdir -p /workspace/docling-models
 
 # Umgebungsvariablen für RunPod & GPU-Erkennung setzen
@@ -19,10 +19,13 @@ ENV DOCLING_DEVICE=cuda
 ENV DOCLING_SERVE_ARTIFACTS_PATH=/workspace/docling-models
 ENV HF_HOME=/workspace/docling-models/.cache/huggingface
 
-# Lade das CodeFormulaV2 Modell während des Builds direkt dorthin herunter
+# 1. Lade das CodeFormulaV2 Modell herunter
 RUN python -c "from huggingface_hub import snapshot_download; snapshot_download(repo_id='docling-project/CodeFormulaV2')"
 
-# Berechtigungen für den gesamten Workspace weit öffnen
+# 2. BEHEBT DEN FEHLER: Lädt die fehlenden RapidOCR-Modelle direkt in den Artifacts-Pfad
+RUN docling-tools models download rapidocr --rapidocr-backend-lang onnxruntime:ch -o /workspace/docling-models
+
+# Berechtigungen für den gesamten Workspace weit öffnen (wichtig für RunPod-User)
 RUN chmod -R 777 /workspace
 
 # Port 5001 freigeben
