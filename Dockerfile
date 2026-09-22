@@ -12,14 +12,17 @@ ENV PORT=5001
 ENV DOCLING_SERVE_ENABLE_UI=1
 ENV DOCLING_DEVICE=cuda
 
-# WICHTIG: Wir biegen die Pfade für die RUNTIME auf den persistenten Workspace um
+# Pfade für die RUNTIME auf den persistenten Workspace umbiegen
 ENV DOCLING_SERVE_ARTIFACTS_PATH=/workspace/docling-models
 ENV HF_HOME=/workspace/docling-models/.cache/huggingface
 
-# 1. Herunterladen aller benötigten Modelle während der Build-Phase in das Backup-Verzeichnis
-# Docling-tools sorgt automatisch für die exakt richtige Ordnerstruktur im Filesystem!
-RUN docling-tools models download rapidocr --rapidocr-backend-lang onnxruntime:ch -o /app/bak/models
-RUN docling-tools models download code-formula -o /app/bak/models
+# KORREKTUR: "code_formula" statt "code-formula" + temporärer HF_HOME Cache für den Download
+RUN mkdir -p /tmp/hf_cache && chmod -R 777 /tmp/hf_cache
+RUN HF_HOME=/tmp/hf_cache docling-tools models download rapidocr --rapidocr-backend-lang onnxruntime:ch -o /app/bak/models
+RUN HF_HOME=/tmp/hf_cache docling-tools models download code_formula -o /app/bak/models
+
+# Temporären Cache wieder aufräumen
+RUN rm -rf /tmp/hf_cache
 
 # Berechtigungen für RunPod weit öffnen
 RUN chmod -R 777 /app/bak /workspace
