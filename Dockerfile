@@ -3,11 +3,8 @@ FROM quay.io/docling-project/docling-serve-cu128:main
 
 USER root
 
-# Installiere huggingface_hub für den Modell-Download
-RUN pip install --no-cache-dir huggingface_hub
-
-# Erstelle die Backup-Verzeichnisse im Image (isoliert von RunPods Mounts)
-RUN mkdir -p /app/bak/RapidOcr /app/bak/.cache/huggingface /workspace/docling-models
+# Erstelle die Backup-Verzeichnisse im unveränderlichen Image-Bereich
+RUN mkdir -p /app/bak/models /workspace/docling-models
 
 # Umgebungsvariablen für RunPod & GPU-Erkennung setzen
 ENV HOST=0.0.0.0
@@ -15,33 +12,28 @@ ENV PORT=5001
 ENV DOCLING_SERVE_ENABLE_UI=1
 ENV DOCLING_DEVICE=cuda
 
-# Das ist der Pfad, den Docling erzwingt und unter dem es sucht
+# WICHTIG: Wir biegen die Pfade für die RUNTIME auf den persistenten Workspace um
 ENV DOCLING_SERVE_ARTIFACTS_PATH=/workspace/docling-models
 ENV HF_HOME=/workspace/docling-models/.cache/huggingface
 
-# 1. Lade CodeFormulaV2 in den HF-Backup-Pfad herunter
-RUN python -c "import os; os.environ['HF_HOME']='/app/bak/.cache/huggingface'; from huggingface_hub import snapshot_download; snapshot_download(repo_id='docling-project/CodeFormulaV2')"
+# 1. Herunterladen aller benötigten Modelle während der Build-Phase in das Backup-Verzeichnis
+# Docling-tools sorgt automatisch für die exakt richtige Ordnerstruktur im Filesystem!
+RUN docling-tools models download rapidocr --rapidocr-backend-lang onnxruntime:ch -o /app/bak/models
+RUN docling-tools models download code-formula -o /app/bak/models
 
-# 2. Lade RapidOCR direkt in den korrekten Unterordner des Backups herunter
-RUN docling-tools models download rapidocr --rapidocr-backend-lang onnxruntime:ch -o /app/bak
-
-# Berechtigungen für alle Verzeichnisse öffnen
+# Berechtigungen für RunPod weit öffnen
 RUN chmod -R 777 /app/bak /workspace
 
 # Port 5001 freigeben
 EXPOSE 5001
 
-# Startbefehl: Prüft beim Booten, ob der Workspace leer ist. 
-# Falls ja, kopiert er ALLE Modelle rüber und startet dann stabil den Server.
+# Startbefehl: Wenn der langlebige RunPod-Workspace beim ersten Start leer ist,
+# kopieren wir die fertig vorstrukturierten Modelle rüber. Danach startet der Server direkt.
 CMD bash -c "\
-mkdir -p /workspace/docling-models/RapidOcr /workspace/docling-models/.cache/huggingface && \
-if [ -z \"\$(ls -A /workspace/docling-models/RapidOcr)\" ]; then \
-    echo 'Kopiere RapidOCR-Modelle in den permanenten Workspace...'; \
-    cp -r /app/bak/RapidOcr/* /workspace/docling-models/RapidOcr/; \
+mkdir -p /workspace/docling-models && \
+if [ -z \"\$(ls -A /workspace/docling-models)\" ]; then \
+    echo 'Kopiere vorkonfigurierte Modelle in den RunPod-Workspace (einmalig)...'; \
+    cp -r /app/bak/models/* /workspace/docling-models/; \
 fi && \
-if [ -z \"\$(ls -A /workspace/docling-models/.cache/huggingface)\" ]; then \
-    echo 'Kopiere CodeFormulaV2-Modelle in den permanenten Workspace...'; \
-    cp -r /app/bak/.cache/huggingface/* /workspace/docling-models/.cache/huggingface/; \
-fi && \
-echo 'Alle Modelle verifiziert. Starte Docling Server...'; \
+echo 'Modelle verifiziert. Starte Docling-Server mit GPU-Support...'; \
 docling-serve run"
