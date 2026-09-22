@@ -2,7 +2,7 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: [ "main" ] # Startet den Build, sobald du etwas im main-Branch speicherst 
+    branches: [ "main" ] # Startet den Build, sobald du etwas im main-Branch speicherst
 
 jobs:
   build_and_push:
