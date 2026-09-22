@@ -16,10 +16,9 @@ ENV DOCLING_DEVICE=cuda
 ENV DOCLING_SERVE_ARTIFACTS_PATH=/workspace/docling-models
 ENV HF_HOME=/workspace/docling-models/.cache/huggingface
 
-# REPARATUR: Nutzt das native Docling-Tool mit dem "--enrich" Flag.
-# Das lädt RapidOCR UND das CodeFormulaV2-Modell (~1.3 GB) automatisch 
-# in der exakt erwarteten Ordnerstruktur in unser Backup-Verzeichnis.
-RUN docling-tools models download --enrich -o /app/bak/models
+# KORREKTUR: "--all" statt "--enrich". Lädt alle Docling-Modelle inklusive 
+# RapidOCR und CodeFormula in perfekter Ordnerstruktur in das Backup-Verzeichnis.
+RUN docling-tools models download --all -o /app/bak/models
 
 # Berechtigungen für RunPod weit öffnen
 RUN chmod -R 777 /app/bak /workspace
