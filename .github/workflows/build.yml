@@ -5,8 +5,14 @@ on:
     branches: [ "main" ] # Startet den Build, sobald du etwas im main-Branch speicherst
 
 jobs:
-  build:
+  build_and_push:
     runs-on: ubuntu-latest
+    
+    # Hier die Schreibrechte für Packages aktivieren:
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
